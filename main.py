@@ -38,15 +38,18 @@ def blend(x, y, color, a):
         return
     row = buf[y]
     i = x * 3
+    cr = clamp(color[0], 0, 255)
+    cg = clamp(color[1], 0, 255)
+    cb = clamp(color[2], 0, 255)
     if a >= 1.0:
-        row[i] = int(color[0])
-        row[i + 1] = int(color[1])
-        row[i + 2] = int(color[2])
+        row[i] = int(cr)
+        row[i + 1] = int(cg)
+        row[i + 2] = int(cb)
     else:
         ia = 1.0 - a
-        row[i] = int(row[i] * ia + color[0] * a)
-        row[i + 1] = int(row[i + 1] * ia + color[1] * a)
-        row[i + 2] = int(row[i + 2] * ia + color[2] * a)
+        row[i] = int(row[i] * ia + cr * a)
+        row[i + 1] = int(row[i + 1] * ia + cg * a)
+        row[i + 2] = int(row[i + 2] * ia + cb * a)
 
 
 # ---------------------------------------------------------------- shapes
@@ -199,7 +202,7 @@ def draw_text(cx, cy, text, px, color, alpha=1.0):
 # ---------------------------------------------------------------- backdrop
 
 def backdrop():
-    top = (216, 210, 200)
+    top = (207, 200, 189)
     mid = (198, 191, 180)
     floor = (226, 220, 210)
     floor_hi = (240, 235, 226)
@@ -303,8 +306,7 @@ def toaster():
     # body
     fill_rrect(bx, by, hw, hh, 34, cream_body)
     # left side shading + right edge shade for roundness
-    fill_rrect(bx - hw + 13, by, 13, hh - 16, 10,
-               lambda x, y: (255, 250, 238, 0.0) if False else (238, 226, 198))
+    fill_rrect(bx - hw + 13, by, 13, hh - 16, 10, lambda x, y: (238, 226, 198))
     fill_rrect(bx + hw - 12, by, 12, hh - 14, 10, lambda x, y: (198, 178, 138))
 
     # chrome top rim
@@ -400,22 +402,20 @@ def catapult():
 # ---------------------------------------------------------------- toast
 
 def _toast_local(px, py, cx, cy, ang, s):
-    """Distance-ish test in toast-local space; returns (d, u, v)."""
+    """SDF of a toast slice in local space: flat-bottom body + domed top."""
     ca, sa = math.cos(-ang), math.sin(-ang)
     dx, dy = px - cx, py - cy
     u = (dx * ca - dy * sa) / s
     v = (dx * sa + dy * ca) / s
-    # union of body rect and domed top
-    qx = abs(u) - 34.0
-    qy = max(v - 6.0, -(v + 44.0)) if v < 6.0 else 0.0
-    rect_d = math.hypot(max(qx, 0.0), max(qy, 0.0)) + min(max(qx, qy), 0.0) - 7.0
-    circ_d = math.hypot(u, v - 6.0) - 41.0
-    d = min(rect_d, circ_d) if v > -20 else rect_d
-    return d, u, v
+    qx = abs(u) - 30.0
+    qy = abs(v - 6.0) - 30.0
+    rect_d = math.hypot(max(qx, 0.0), max(qy, 0.0)) + min(max(qx, qy), 0.0) - 6.0
+    circ_d = math.hypot(u, v + 30.0) - 36.0
+    return min(rect_d, circ_d), u, v
 
 
 def toast(cx, cy, ang, s, alpha):
-    xa, ya, xb, yb = _bbox(cx - 62 * s, cy - 62 * s, cx + 62 * s, cy + 62 * s)
+    xa, ya, xb, yb = _bbox(cx - 80 * s, cy - 80 * s, cx + 80 * s, cy + 80 * s)
     for yy in range(ya, yb + 1):
         py = (yy + 0.5) / SS
         for xx in range(xa, xb + 1):
@@ -425,13 +425,13 @@ def toast(cx, cy, ang, s, alpha):
             if cov <= 0.0:
                 continue
             # crust ring, then crumb, then a toasted heart
-            di, _, _ = _toast_local(px, py, cx, cy, ang, s * 0.86)
+            di, _, _ = _toast_local(px, py, cx, cy, ang, s * 0.84)
             if di > 0.0:
-                c = mix((196, 122, 44), (158, 88, 26), clamp((v + 50) / 100.0))
+                c = mix((198, 124, 45), (160, 90, 27), clamp((v + 66) / 108.0))
             else:
-                dj, _, _ = _toast_local(px, py, cx, cy, ang, s * 0.60)
-                base = (243, 209, 141) if dj > 0.0 else (232, 183, 102)
-                c = mix(base, (250, 224, 168), clamp(1.0 - (v + 50) / 110.0))
+                dj, _, _ = _toast_local(px, py, cx, cy, ang, s * 0.58)
+                base = (244, 211, 143) if dj > 0.0 else (233, 185, 104)
+                c = mix(base, (250, 226, 170), clamp(1.0 - (v + 66) / 120.0))
             blend(xx, yy, c, cov)
 
 
